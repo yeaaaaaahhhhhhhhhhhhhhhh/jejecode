@@ -1,70 +1,55 @@
 import re
-import random
 import json
+import difflib
 
 
-with open("normal_to_jejemon_variants.json", "r", encoding="utf-8") as f:
-    normalization_dict = json.load(f)
+with open('jejemon_to_normal_variants.json', 'r', encoding='utf-8') as f:
+    translation_map = json.load(f)
+
+
+known_words = list(set(translation_map.values()))
 
 
 leet_replacements = {
-    'a': '4', 'e': '3', 'i': '1', 'o': '0', 'u': 'u',
-    's': '5', 't': '7', 'b': '8', 'g': '9', 'l': '1'
+    '0': 'o', '1': 'i', '3': 'e', '4': 'a',
+    '5': 's', '7': 't', '@': 'a', '$': 's',
+    '+': 't', '8': 'b'
 }
 
-reverse_leet = {
-    '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's',
-    '7': 't', '@': 'a', '$': 's', '+': 't', '8': 'b'
-}
+def smart_normalize(word):
+    word = word.lower()
+    word = re.sub(r"[^a-z0-9]", "", word)
+    return ''.join(leet_replacements.get(c, c) for c in word)
 
+def closest_mainword(word):
+    normalized = smart_normalize(word)
+    match = difflib.get_close_matches(normalized, known_words, n=1, cutoff=0.6)
+    return match[0] if match else word
 
-def normalize_leetspeak(word):
-    return ''.join(reverse_leet.get(c.lower(), c.lower()) for c in word)
+def translate_jejemon_to_normal(text):
+    words = re.findall(r'\b[\w@#\'!&.%-]+\b', text)
+    translated_words = []
 
-
-def to_jejemon(word):
-    return ''.join(leet_replacements.get(c.lower(), c) for c in word)
-
-
-def build_maps(data):
-    translation_map = {}
-    for category, words in data.items():
-        for k, v in words.items():
-            translation_map[k.lower()] = v
-    return translation_map
-
-translation_map = build_maps(normalization_dict)
-
-
-def translate_sentence(user_input):
-    def replacer(match):
-        word = match.group(0)
+    for word in words:
         key = word.lower()
-        normalized = normalize_leetspeak(key)
-
         if key in translation_map:
-            return translation_map[key]
-        elif normalized in translation_map:
-            return translation_map[normalized]
+            translated_words.append(translation_map[key])
         else:
-            return to_jejemon(word)
+            translated_words.append(closest_mainword(key))
 
-    pattern = re.compile(r"\b[\w@#'!&.%-]+\b")
-    return pattern.sub(replacer, user_input)
-
+    return ' '.join(translated_words)
 
 def chatbot_simulate():
-    print("🤖 Jejelator is ready! Type 'exit' to quit.")
+    print("👾 Jejelator (Jejemon ➡ Normal) is ready!\nType 'exit' to quit.\n")
 
     while True:
         user_input = input("You: ")
         if user_input.strip().lower() in ["exit", "quit", "bye"]:
-            print("👋 Bye!!")
+            print("👋 Bye!")
             break
 
-        translated = translate_sentence(user_input)
-        print(f"\n📝 Translation:\n  {translated}\n")
-
+        translated = translate_jejemon_to_normal(user_input)
+        print(f"📝 Translation:\n{translated}\n")
 
 if __name__ == "__main__":
     chatbot_simulate()
